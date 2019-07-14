@@ -55,7 +55,9 @@ cd static-site-hosting
 npm install
 cp domains/sample.yml domains/examplecom.yml
 vi domains/examplecom.yml # See README.md#Site-Configuration
-cdk deploy -c configPath=domains/examplecom.yml
+cdk deploy -c configPath=domains/examplecom.yml 'domain-resources-*'
+# Configure your domain to use the Route 53 nameservers
+cdk deploy -c configPath=domains/examplecom.yml 'site-hosting-*'
 # NOTE: The deploy will hang partway until you approve the certificate created by ACM
 ```
 

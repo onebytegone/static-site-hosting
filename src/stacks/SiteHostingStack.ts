@@ -1,10 +1,9 @@
 import { Stack, Construct, StackProps, Duration } from '@aws-cdk/core';
-import { HostedZone, IHostedZone, RecordTarget, ARecord } from '@aws-cdk/aws-route53';
+import { HostedZone, RecordTarget, ARecord } from '@aws-cdk/aws-route53';
 import { CloudFrontTarget } from '@aws-cdk/aws-route53-targets';
 import { PolicyStatement, Effect, CanonicalUserPrincipal } from '@aws-cdk/aws-iam';
 import { Certificate } from '@aws-cdk/aws-certificatemanager';
 import { Bucket, BucketPolicy } from '@aws-cdk/aws-s3';
-import { ReceiptRule, ReceiptRuleSet, ReceiptRuleSnsAction } from '@aws-cdk/aws-ses';
 import {
    CfnCloudFrontOriginAccessIdentity,
    CloudFrontAllowedCachedMethods,
@@ -15,27 +14,31 @@ import {
    SSLMethod,
    ViewerProtocolPolicy,
 } from '@aws-cdk/aws-cloudfront';
-import { SESDomainOwnershipVerification } from '../custom-resources/ses-domain-ownership-verification/SESDomainOwnershipVerification';
-import { Topic } from '@aws-cdk/aws-sns';
 
-interface StaticSiteConfig extends StackProps {
+interface SiteConfig extends StackProps {
    subdomain: string;
 }
 
-interface StaticSiteStackProps extends StackProps {
-   rootDomain: string;
+interface SiteHostingStackProps extends StackProps {
+   hostedZone: HostedZone;
    sesReceiptRuleSetName: string;
    receivedEmailTopicArn: string;
-   sites: StaticSiteConfig[];
+   sites: SiteConfig[];
 }
 
-export default class StaticSiteStack extends Stack {
+export default class SiteHostingStack extends Stack {
 
-   public constructor(scope: Construct | undefined, name: string | undefined, props: StaticSiteStackProps) {
+   public constructor(scope: Construct | undefined, name: string | undefined, props: SiteHostingStackProps) {
       super(scope, name, props);
 
-      const hostedZone = new HostedZone(this, 'HostedZone', {
-         zoneName: props.rootDomain,
+      const rootDomain = props.hostedZone.zoneName;
+
+      // This cert is more for the domain. However, since the domain needs to be "setup"
+      // in order for the email rules to work, putting this cert in the hosting stack as
+      // this stack gets deployed after the DomainResourcesStack.
+      const certificate = new Certificate(this, 'DomainCertificate', {
+         domainName: `*.${rootDomain}`,
+         subjectAlternativeNames: [ rootDomain ],
       });
 
       const originAccessIdentity = new CfnCloudFrontOriginAccessIdentity(this, 'WebsiteOriginAccessIdentity', {
@@ -44,28 +47,16 @@ export default class StaticSiteStack extends Stack {
          },
       });
 
-      this._setupDomainEmailForwarding({
-         domain: props.rootDomain,
-         hostedZone: hostedZone,
-         sesReceiptRuleSetName: props.sesReceiptRuleSetName,
-         receivedEmailTopicArn: props.receivedEmailTopicArn,
-      });
-
-      const certificate = new Certificate(this, 'DomainCertificate', {
-         domainName: `*.${props.rootDomain}`,
-         subjectAlternativeNames: [ props.rootDomain ],
-      });
-
       // TODO: Lock down so a distribution can't access the files of another subdomain
-      const hostingBucket = this._makeHostingBucket(props.rootDomain, originAccessIdentity),
-            logBucket = this._makeLogBucket(props.rootDomain);
+      const hostingBucket = this._makeHostingBucket(rootDomain, originAccessIdentity),
+            logBucket = this._makeLogBucket(rootDomain);
 
       props.sites.forEach((site) => {
-         const primaryDomain = this._getFullDomainForSite(props.rootDomain, site),
+         const primaryDomain = this._getFullDomainForSite(rootDomain, site),
                domainNames = [ primaryDomain ];
 
          if (site.subdomain === 'www') {
-            domainNames.push(props.rootDomain);
+            domainNames.push(rootDomain);
          }
 
          const distribution = new CloudFrontWebDistribution(this, `Distribution-${primaryDomain.replace(/\./g, '')}`, {
@@ -114,36 +105,10 @@ export default class StaticSiteStack extends Stack {
             // eslint-disable-next-line no-new
             new ARecord(this, `RecordSet-${domainName.replace(/\./g, '')}`, {
                recordName: domainName,
-               zone: hostedZone,
+               zone: props.hostedZone,
                target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
             });
          });
-      });
-   }
-
-   private _setupDomainEmailForwarding(props: {
-      domain: string;
-      hostedZone: IHostedZone;
-      sesReceiptRuleSetName: string;
-      receivedEmailTopicArn: string;
-   }): void {
-      // eslint-disable-next-line no-new
-      new SESDomainOwnershipVerification(this, 'SESDomainOwnershipVerification', {
-         domain: props.domain,
-         hostedZone: props.hostedZone,
-      });
-
-      // eslint-disable-next-line no-new
-      new ReceiptRule(this, 'ReceiptRule', {
-         ruleSet: ReceiptRuleSet.fromReceiptRuleSetName(this, 'ReceiptRuleSet', props.sesReceiptRuleSetName),
-         receiptRuleName: props.domain,
-         recipients: [ props.domain ],
-         scanEnabled: true,
-         actions: [
-            new ReceiptRuleSnsAction({
-               topic: Topic.fromTopicArn(this, 'ValidationEmailTopic', props.receivedEmailTopicArn),
-            }),
-         ],
       });
    }
 
@@ -197,7 +162,7 @@ export default class StaticSiteStack extends Stack {
       return bucket;
    }
 
-   private _getFullDomainForSite(rootDomain: string, site: StaticSiteConfig): string {
+   private _getFullDomainForSite(rootDomain: string, site: SiteConfig): string {
       return site.subdomain ? `${site.subdomain}.${rootDomain}` : rootDomain;
    }
 

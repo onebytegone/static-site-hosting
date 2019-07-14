@@ -1,8 +1,9 @@
 import { App } from '@aws-cdk/core';
-import StaticSiteStack from './stacks/StaticSiteStack';
 import { isString, promisify } from 'util';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import DomainResourcesStack from './stacks/DomainResourcesStack';
+import SiteHostingStack from './stacks/SiteHostingStack';
 
 const readFile = promisify(fs.readFile);
 
@@ -28,9 +29,17 @@ interface StaticSiteHostingConfig {
          stackNameSafeDomain = config.domain.replace(/\./g, '');
 
    // eslint-disable-next-line no-new
-   new StaticSiteStack(app, 'StaticSite', {
-      stackName: `static-site-hosting-${stackNameSafeDomain}`,
-      rootDomain: config.domain,
+   const domainResources = new DomainResourcesStack(app, 'DomainResourcesStack', {
+      stackName: `domain-resources-${stackNameSafeDomain}`,
+      domain: config.domain,
+      sesReceiptRuleSetName: config.sesReceiptRuleSetName,
+      receivedEmailTopicArn: config.receivedEmailTopicArn,
+   });
+
+   // eslint-disable-next-line no-new
+   new SiteHostingStack(app, 'SiteHostingStack', {
+      stackName: `site-hosting-${stackNameSafeDomain}`,
+      hostedZone: domainResources.hostedZone,
       sesReceiptRuleSetName: config.sesReceiptRuleSetName,
       receivedEmailTopicArn: config.receivedEmailTopicArn,
       sites: config.sites,
