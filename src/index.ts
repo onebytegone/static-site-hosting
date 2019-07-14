@@ -1,5 +1,7 @@
-import Example from './Example';
+import { App } from '@aws-cdk/core';
 
-export {
-   Example,
-};
+(async function() {
+   const app = new App();
+
+   app.synth();
+}());

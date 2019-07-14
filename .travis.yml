@@ -13,7 +13,7 @@ script:
    - npm --version
    - grunt standards
    - commitlint-travis
-   - npm run test:ci
+   - npm run test
 
 # For code coverage:
 after_success:

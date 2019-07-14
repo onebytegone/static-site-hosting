@@ -45,7 +45,7 @@ node_modules
 .tscache
 
 # Build output
-dist
+cdk.out
 
 # NYC
 .nyc_output

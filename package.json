@@ -3,8 +3,7 @@
    "version": "0.1.0",
    "description": "",
    "scripts": {
-      "test": "TS_NODE_PROJECT='tests/tsconfig.json' TS_NODE_FILES=true nyc mocha --opts ./.mocha.opts",
-      "test:ci": "npm test -- --forbid-only"
+      "test": "./node_modules/.bin/cdk synth"
    },
    "author": "Ethan Smith",
    "license": "MIT",
@@ -49,7 +48,10 @@
       "tslib": "1.9.3",
       "typescript": "3.2.2"
    },
-   "dependencies": {},
+   "dependencies": {
+      "@aws-cdk/core": "1.0.0",
+      "aws-cdk": "1.0.0"
+   },
    "config": {
       "commitizen": {
          "path": "./node_modules/cz-conventional-changelog"
