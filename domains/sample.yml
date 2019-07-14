@@ -1,0 +1,21 @@
+########################################
+# Account specific settings
+########################################
+
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ses-receiptrule.html#cfn-ses-receiptrule-rulesetname
+sesReceiptRuleSetName: ''
+
+# The SNS topic that emails (e.g. ACM certificate validation) will be published to.
+receivedEmailTopicArn: ''
+
+
+########################################
+# Domain specific settings
+########################################
+
+domain: example.com
+sites:
+   - # Hosted at 'www.example.com' and 'example.com' (apex)
+      subdomain: www
+   - # Hosted at 'misc.example.com'
+      subdomain: misc

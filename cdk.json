@@ -1,3 +1,6 @@
 {
-   "app": "./node_modules/.bin/ts-node src/index.ts"
+   "app": "./node_modules/.bin/ts-node src/index.ts",
+   "context": {
+      "configPath": "domains/sample.yml"
+   }
 }

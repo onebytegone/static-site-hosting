@@ -3,7 +3,7 @@
    "version": "0.1.0",
    "description": "",
    "scripts": {
-      "test": "./node_modules/.bin/cdk synth"
+      "test": "./node_modules/.bin/cdk synth -c configPath=domains/sample.yml"
    },
    "author": "Ethan Smith",
    "license": "MIT",
@@ -27,6 +27,7 @@
       "@silvermine/eslint-config": "2.2.1",
       "@silvermine/typescript-config": "0.9.0",
       "@types/chai": "4.1.7",
+      "@types/js-yaml": "3.12.1",
       "@types/mocha": "5.2.5",
       "@types/node": "8.10.36",
       "@types/sinon": "5.0.5",
@@ -49,8 +50,20 @@
       "typescript": "3.2.2"
    },
    "dependencies": {
+      "@aws-cdk/aws-certificatemanager": "1.0.0",
+      "@aws-cdk/aws-cloudformation": "1.0.0",
+      "@aws-cdk/aws-cloudfront": "1.0.0",
+      "@aws-cdk/aws-iam": "1.0.0",
+      "@aws-cdk/aws-lambda": "1.0.0",
+      "@aws-cdk/aws-route53": "1.0.0",
+      "@aws-cdk/aws-route53-targets": "1.0.0",
+      "@aws-cdk/aws-s3": "1.0.0",
+      "@aws-cdk/aws-ses": "1.0.0",
+      "@aws-cdk/aws-sns": "1.0.0",
+      "@aws-cdk/aws-sns-subscriptions": "1.0.0",
       "@aws-cdk/core": "1.0.0",
-      "aws-cdk": "1.0.0"
+      "aws-cdk": "1.0.0",
+      "js-yaml": "3.13.1"
    },
    "config": {
       "commitizen": {
