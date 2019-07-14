@@ -1,6 +1,5 @@
 # Static Site Hosting (using AWS)
 
-[![NPM Version](https://img.shields.io/npm/v/static-site-hosting.svg)](https://www.npmjs.com/package/static-site-hosting)
 [![License](https://img.shields.io/github/license/onebytegone/static-site-hosting.svg)](./LICENSE)
 [![Build Status](https://travis-ci.com/onebytegone/static-site-hosting.svg?branch=master)](https://travis-ci.com/onebytegone/static-site-hosting)
 [![Coverage Status](https://coveralls.io/repos/github/onebytegone/static-site-hosting/badge.svg?branch=master)](https://coveralls.io/github/onebytegone/static-site-hosting?branch=master)
@@ -50,7 +49,7 @@ static site.
 ### Deployment
 
 ```
-git clone TODO
+git clone git@github.com:onebytegone/static-site-hosting.git
 cd static-site-hosting
 npm install
 cp domains/sample.yml domains/examplecom.yml
@@ -63,7 +62,7 @@ cdk deploy -c configPath=domains/examplecom.yml 'site-hosting-*'
 
 ## Site Configuration
 
-An example can be found at [`./domains/sample.yml`][./domains/sample.yml].
+An example can be found at [`./domains/sample.yml`](./domains/sample.yml).
 
    * Account specific config
       * `sesReceiptRuleSetName`: The name of the active SES Receipt Rule Set in your
