@@ -1,7 +1,15 @@
 import { Stack, Construct, StackProps, Duration } from '@aws-cdk/core';
 import { HostedZone, RecordTarget, ARecord } from '@aws-cdk/aws-route53';
 import { CloudFrontTarget } from '@aws-cdk/aws-route53-targets';
-import { PolicyStatement, Effect, CanonicalUserPrincipal } from '@aws-cdk/aws-iam';
+import {
+   PolicyStatement,
+   Effect,
+   CanonicalUserPrincipal,
+   ServicePrincipal,
+   CompositePrincipal,
+   Role,
+   ManagedPolicy,
+} from '@aws-cdk/aws-iam';
 import { Certificate } from '@aws-cdk/aws-certificatemanager';
 import { Bucket, BucketPolicy } from '@aws-cdk/aws-s3';
 import {
@@ -13,7 +21,10 @@ import {
    SecurityPolicyProtocol,
    SSLMethod,
    ViewerProtocolPolicy,
+   LambdaEdgeEventType,
 } from '@aws-cdk/aws-cloudfront';
+import { readFileSync } from 'fs';
+import { InlineCode, Runtime, Version, Function as LambdaFunction } from '@aws-cdk/aws-lambda';
 
 interface SiteConfig extends StackProps {
    subdomain: string;
@@ -49,7 +60,9 @@ export default class SiteHostingStack extends Stack {
 
       // TODO: Lock down so a distribution can't access the files of another subdomain
       const hostingBucket = this._makeHostingBucket(rootDomain, originAccessIdentity),
-            logBucket = this._makeLogBucket(rootDomain);
+            logBucket = this._makeLogBucket(rootDomain),
+            directoryRootRewriter = this._makeDirectoryRootRewriter(),
+            directoryRootRewriterVersion = new Version(this, 'DirectoryRootRewriterVersion', { lambda: directoryRootRewriter });
 
       props.sites.forEach((site) => {
          const primaryDomain = this._getFullDomainForSite(rootDomain, site),
@@ -90,6 +103,12 @@ export default class SiteHostingStack extends Stack {
                               forward: 'none',
                            },
                         },
+                        lambdaFunctionAssociations: [
+                           {
+                              eventType: LambdaEdgeEventType.ORIGIN_REQUEST,
+                              lambdaFunction: directoryRootRewriterVersion,
+                           },
+                        ],
                      },
                   ],
                },
@@ -160,6 +179,30 @@ export default class SiteHostingStack extends Stack {
       });
 
       return bucket;
+   }
+
+   private _makeDirectoryRootRewriter(): lambda.Function {
+      // Using InlineCode seems rather ugly. But for now, leaving as getting this "right"
+      // will take a fair amount of setup.
+
+      const codePath = 'src/functions/DirectoryRootRewriteHandler.js',
+            code = readFileSync(codePath, { encoding: 'utf-8' }) as string;
+
+      const fn = new LambdaFunction(this, 'DirectoryRootRewriterLambda', {
+         functionName: `${Stack.of(this).stackName}-directory-root-rewriter`,
+         runtime: Runtime.NODEJS_8_10,
+         code: new InlineCode(code),
+         handler: 'index.handler',
+         role: new Role(this, 'AllowLambdaToAssumeRole', {
+            assumedBy: new CompositePrincipal(
+               new ServicePrincipal('lambda.amazonaws.com'),
+               new ServicePrincipal('edgelambda.amazonaws.com'),
+            ),
+            managedPolicies: [ ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole') ],
+         }),
+      });
+
+      return fn;
    }
 
    private _getFullDomainForSite(rootDomain: string, site: SiteConfig): string {
