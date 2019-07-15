@@ -25,6 +25,7 @@ import {
 } from '@aws-cdk/aws-cloudfront';
 import { readFileSync } from 'fs';
 import { InlineCode, Runtime, Version, Function as LambdaFunction } from '@aws-cdk/aws-lambda';
+import { createHash } from 'crypto';
 
 interface SiteConfig extends StackProps {
    subdomain: string;
@@ -61,8 +62,7 @@ export default class SiteHostingStack extends Stack {
       // TODO: Lock down so a distribution can't access the files of another subdomain
       const hostingBucket = this._makeHostingBucket(rootDomain, originAccessIdentity),
             logBucket = this._makeLogBucket(rootDomain),
-            directoryRootRewriter = this._makeDirectoryRootRewriter(),
-            directoryRootRewriterVersion = new Version(this, 'DirectoryRootRewriterVersion', { lambda: directoryRootRewriter });
+            directoryRootRewriter = this._makeDirectoryRootRewriter();
 
       props.sites.forEach((site) => {
          const primaryDomain = this._getFullDomainForSite(rootDomain, site),
@@ -106,7 +106,7 @@ export default class SiteHostingStack extends Stack {
                         lambdaFunctionAssociations: [
                            {
                               eventType: LambdaEdgeEventType.ORIGIN_REQUEST,
-                              lambdaFunction: directoryRootRewriterVersion,
+                              lambdaFunction: directoryRootRewriter,
                            },
                         ],
                      },
@@ -181,12 +181,17 @@ export default class SiteHostingStack extends Stack {
       return bucket;
    }
 
-   private _makeDirectoryRootRewriter(): lambda.Function {
+   private _makeDirectoryRootRewriter(): Version {
       // Using InlineCode seems rather ugly. But for now, leaving as getting this "right"
       // will take a fair amount of setup.
 
       const codePath = 'src/functions/DirectoryRootRewriteHandler.js',
-            code = readFileSync(codePath, { encoding: 'utf-8' }) as string;
+            code = readFileSync(codePath, { encoding: 'utf-8' }) as string,
+            hash = createHash('sha256');
+
+      hash.setEncoding('base64');
+      hash.write(code);
+      hash.end();
 
       const fn = new LambdaFunction(this, 'DirectoryRootRewriterLambda', {
          functionName: `${Stack.of(this).stackName}-directory-root-rewriter`,
@@ -202,7 +207,9 @@ export default class SiteHostingStack extends Stack {
          }),
       });
 
-      return fn;
+      return new Version(this, `DirectoryRootRewriterVersion${hash.read()}`, {
+         lambda: fn,
+      });
    }
 
    private _getFullDomainForSite(rootDomain: string, site: SiteConfig): string {
